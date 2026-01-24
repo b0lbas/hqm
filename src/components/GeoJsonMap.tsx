@@ -149,6 +149,7 @@ export default function GeoJsonMap({
       style: feature => {
         const id = getFeatureId(feature as any, idKey)
         const state = regionStates?.[id] || 'none'
+        console.debug('[GeoJsonMap] initial style for', id, 'state', state)
         return styleForState(state)
       },
       onEachFeature: (feature, layer) => {
@@ -179,6 +180,7 @@ export default function GeoJsonMap({
       if (!feature) return
       const id = getFeatureId(feature, idKey)
       const state = regionStates?.[id] || 'none'
+      console.debug('[GeoJsonMap] updating style for', id, 'state', state)
       if ('setStyle' in l) {
         ;(l as L.Path).setStyle(styleForState(state))
       }

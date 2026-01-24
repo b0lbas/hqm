@@ -68,6 +68,7 @@ export default function PlayPage() {
     setScore(0)
     setAnswer({ status: 'idle' })
     setGuessedIds([])
+    console.debug('[PlayPage] reset state for quizId', quizId)
   }, [quizId])
 
   const q = questions[idx]
@@ -88,8 +89,17 @@ export default function PlayPage() {
       map[q.targetId] = 'target'
     }
 
-    if (answer.status === 'wrong') map[q.targetId] = 'wrong'
-    if (answer.status === 'correct') map[q.targetId] = 'correct'
+    // If answered, mark chosen and target appropriately
+    if (answer.status === 'wrong') {
+      const chosen = (answer as any).chosenId
+      if (chosen) map[chosen] = 'wrong'
+      // also reveal correct target
+      map[q.targetId] = 'correct'
+    }
+    if (answer.status === 'correct') {
+      map[q.targetId] = 'correct'
+    }
+    console.debug('[PlayPage] regionStates', map, 'guessedIds', guessedIds, 'easyMode', quiz.settings.easyMode)
     return map
   }, [q, answer, quiz, guessedIds])
 
