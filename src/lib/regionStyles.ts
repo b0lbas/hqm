@@ -6,6 +6,12 @@ export type RegionStyleId =
   | 'white'
   | 'white-on-black'
   | 'black-on-white'
+  | 'outline-white'
+  | 'outline-black'
+  | 'outline-red'
+  | 'outline-emerald'
+  | 'outline-indigo'
+  | 'outline-amber'
   | 'slate'
   | 'sand'
   | 'emerald'
@@ -23,6 +29,7 @@ export type RegionStyle = {
   label: string
   fill: string
   stroke: string
+  fillOpacity?: number
 }
 
 const REGION_STYLE_KEY = 'hqmin.regionstyle'
@@ -35,6 +42,12 @@ export const REGION_STYLES: RegionStyle[] = [
   { id: 'white', label: 'Светлая карта', fill: 'rgba(248,250,252,0.95)', stroke: 'rgba(15,23,42,0.35)' },
   { id: 'white-on-black', label: 'Светлый контур', fill: 'rgba(248,250,252,0.95)', stroke: 'rgba(2,6,23,0.9)' },
   { id: 'black-on-white', label: 'Тёмный контур', fill: 'rgba(2,6,23,0.95)', stroke: 'rgba(248,250,252,0.6)' },
+  { id: 'outline-white', label: 'Контур: белый', fill: 'rgba(0,0,0,0)', stroke: 'rgba(248,250,252,0.9)', fillOpacity: 0 },
+  { id: 'outline-black', label: 'Контур: чёрный', fill: 'rgba(0,0,0,0)', stroke: 'rgba(2,6,23,0.9)', fillOpacity: 0 },
+  { id: 'outline-red', label: 'Контур: красный', fill: 'rgba(0,0,0,0)', stroke: 'rgba(248,113,113,0.95)', fillOpacity: 0 },
+  { id: 'outline-emerald', label: 'Контур: изумрудный', fill: 'rgba(0,0,0,0)', stroke: 'rgba(52,211,153,0.95)', fillOpacity: 0 },
+  { id: 'outline-indigo', label: 'Контур: индиго', fill: 'rgba(0,0,0,0)', stroke: 'rgba(129,140,248,0.95)', fillOpacity: 0 },
+  { id: 'outline-amber', label: 'Контур: янтарный', fill: 'rgba(0,0,0,0)', stroke: 'rgba(252,211,77,0.95)', fillOpacity: 0 },
   { id: 'slate', label: 'Сланцевый', fill: 'rgba(30,41,59,0.85)', stroke: 'rgba(203,213,225,0.6)' },
   { id: 'sand', label: 'Песочный', fill: 'rgba(214,197,164,0.85)', stroke: 'rgba(120,86,52,0.6)' },
   { id: 'emerald', label: 'Изумрудный', fill: 'rgba(6,95,70,0.85)', stroke: 'rgba(110,231,183,0.8)' },

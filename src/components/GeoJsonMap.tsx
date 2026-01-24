@@ -47,15 +47,18 @@ export default function GeoJsonMap({
 
   const styleForState = useMemo(() => {
     const base = getRegionStyleById(regionStyleId)
+    const baseFillOpacity = base.fillOpacity ?? 1
     return (state: RegionState) => {
       const fillColor =
-        state === 'correct'
-          ? 'rgba(34,197,94,0.35)'
-          : state === 'wrong'
-            ? 'rgba(244,63,94,0.30)'
-            : state === 'target'
-              ? 'rgba(99,102,241,0.30)'
-              : base.fill
+        baseFillOpacity === 0
+          ? 'rgba(0,0,0,0)'
+          : state === 'correct'
+            ? 'rgba(34,197,94,0.35)'
+            : state === 'wrong'
+              ? 'rgba(244,63,94,0.30)'
+              : state === 'target'
+                ? 'rgba(99,102,241,0.30)'
+                : base.fill
 
       const color =
         state === 'correct'
@@ -70,7 +73,7 @@ export default function GeoJsonMap({
         color,
         weight: 1,
         fillColor,
-        fillOpacity: 1
+        fillOpacity: baseFillOpacity
       } as L.PathOptions
     }
   }, [regionStyleId])

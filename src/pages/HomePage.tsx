@@ -226,7 +226,10 @@ export default function HomePage() {
                 >
                   <span
                     className="h-8 w-8 rounded-lg"
-                    style={{ backgroundColor: style.fill, border: `2px solid ${style.stroke}` }}
+                    style={{
+                      backgroundColor: (style.fillOpacity ?? 1) === 0 ? 'transparent' : style.fill,
+                      border: `2px solid ${style.stroke}`
+                    }}
                   />
                 </button>
               )
