@@ -51,43 +51,41 @@ export default function GeoJsonMap({
     const base = getRegionStyleById(regionStyleId)
     const baseFillOpacity = base.fillOpacity ?? 1
     return (state: RegionState) => {
-      // Если easyMode и correct — всегда делаем заливку (fillOpacity > 0)
-      if (state === 'correct' && easyMode) {
+      // Всегда заливаем correct и wrong независимо от baseFillOpacity
+      if (state === 'correct') {
         return {
           color: 'rgba(34,197,94,0.9)',
           weight: 1,
           fillColor: 'rgba(34,197,94,0.35)',
-          fillOpacity: 0.6 // фиксированная заливка для correct
+          fillOpacity: 0.6
         } as L.PathOptions
       }
-      const fillColor =
-        baseFillOpacity === 0
-          ? 'rgba(0,0,0,0)'
-          : state === 'correct'
-            ? 'rgba(34,197,94,0.35)'
-            : state === 'wrong'
-              ? 'rgba(244,63,94,0.30)'
-              : state === 'target'
-                ? 'rgba(99,102,241,0.30)'
-                : base.fill
-
-      const color =
-        state === 'correct'
-          ? 'rgba(34,197,94,0.9)'
-          : state === 'wrong'
-            ? 'rgba(244,63,94,0.9)'
-            : state === 'target'
-              ? 'rgba(99,102,241,0.9)'
-              : base.stroke
-
+      if (state === 'wrong') {
+        return {
+          color: 'rgba(244,63,94,0.9)',
+          weight: 1,
+          fillColor: 'rgba(244,63,94,0.30)',
+          fillOpacity: 0.6
+        } as L.PathOptions
+      }
+      // Для target — полупрозрачная синяя заливка, если не outline
+      if (state === 'target') {
+        return {
+          color: 'rgba(99,102,241,0.9)',
+          weight: 1,
+          fillColor: baseFillOpacity === 0 ? 'rgba(99,102,241,0.10)' : 'rgba(99,102,241,0.30)',
+          fillOpacity: baseFillOpacity === 0 ? 0.25 : baseFillOpacity
+        } as L.PathOptions
+      }
+      // Для остальных — как в стиле
       return {
-        color,
+        color: base.stroke,
         weight: 1,
-        fillColor,
+        fillColor: base.fill,
         fillOpacity: baseFillOpacity
       } as L.PathOptions
     }
-  }, [regionStyleId, easyMode])
+  }, [regionStyleId])
 
   useEffect(() => {
     if (!containerRef.current) return
