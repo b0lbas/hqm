@@ -117,7 +117,7 @@ export default function DatasetModal({
       footer={
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs text-slate-500">
-            {raw ? `${raw.features.length} объектов` : 'Загрузите GeoJSON FeatureCollection'}
+            {raw ? `${raw.features.length} объектов` : ''}
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={() => {
@@ -146,7 +146,7 @@ export default function DatasetModal({
 
         <div className="grid gap-2">
           <div className="text-sm font-medium">2) Название датасета</div>
-          <Input value={name} onChange={setName} placeholder="Например: Municipalities of Spain" />
+          <Input value={name} onChange={setName} />
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
