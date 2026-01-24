@@ -104,20 +104,20 @@ export default function PlayPage() {
     const correct = chosenId === q.targetId
     if (correct) setScore(s => s + 1)
     setAnswer({ status: correct ? 'correct' : 'wrong', chosenId })
-    // easyMode: если ответ правильный, добавляем в guessedIds
-    if (quiz?.settings.easyMode && correct) {
-      setGuessedIds(ids => ids.includes(chosenId) ? ids : [...ids, chosenId])
-    }
   }
 
   useEffect(() => {
     if (!q || done) return
     if (answer.status === 'idle') return
+    // easyMode: если правильный ответ — добавляем в guessedIds
+    if (quiz?.settings.easyMode && answer.status === 'correct' && (answer as any).chosenId) {
+      setGuessedIds(ids => ids.includes((answer as any).chosenId) ? ids : [...ids, (answer as any).chosenId])
+    }
     const t = window.setTimeout(() => {
       next()
     }, 1400)
     return () => window.clearTimeout(t)
-  }, [answer.status, done, q])
+  }, [answer.status, done, q, quiz?.settings.easyMode])
 
   // Keyboard shortcuts: 1..9 for options, Enter for next
   useEffect(() => {
