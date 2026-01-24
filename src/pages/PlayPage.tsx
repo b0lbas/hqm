@@ -17,6 +17,9 @@ export default function PlayPage() {
   const [quiz, setQuiz] = useState<Quiz | undefined>(undefined)
   const [dataset, setDataset] = useState<Dataset | undefined>(undefined)
 
+  // easyMode: сохраняем угаданные регионы
+  const [guessedIds, setGuessedIds] = useState<string[]>([])
+
   useEffect(() => {
     let alive = true
     async function load() {
@@ -64,14 +67,21 @@ export default function PlayPage() {
     setIdx(0)
     setScore(0)
     setAnswer({ status: 'idle' })
+    setGuessedIds([])
   }, [quizId])
 
   const q = questions[idx]
   const done = idx >= questions.length
 
+  // easyMode: если включено, регионы из guessedIds всегда correct
   const regionStates = useMemo(() => {
     if (!q || !quiz) return {}
     const map: Record<string, 'none' | 'target' | 'correct' | 'wrong'> = {}
+
+    // easyMode: подсвечиваем все угаданные регионы
+    if (quiz.settings.easyMode && guessedIds.length) {
+      for (const id of guessedIds) map[id] = 'correct'
+    }
 
     // For multiple-choice show the target only while answering.
     if (q.kind !== 'map-click' && answer.status === 'idle') {
@@ -81,7 +91,7 @@ export default function PlayPage() {
     if (answer.status === 'wrong') map[q.targetId] = 'wrong'
     if (answer.status === 'correct') map[q.targetId] = 'correct'
     return map
-  }, [q, answer, quiz])
+  }, [q, answer, quiz, guessedIds])
 
   function next() {
     setAnswer({ status: 'idle' })
@@ -94,6 +104,10 @@ export default function PlayPage() {
     const correct = chosenId === q.targetId
     if (correct) setScore(s => s + 1)
     setAnswer({ status: correct ? 'correct' : 'wrong', chosenId })
+    // easyMode: если ответ правильный, добавляем в guessedIds
+    if (quiz?.settings.easyMode && correct) {
+      setGuessedIds(ids => ids.includes(chosenId) ? ids : [...ids, chosenId])
+    }
   }
 
   useEffect(() => {

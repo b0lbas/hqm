@@ -30,6 +30,7 @@ export type Quiz = {
     optionsCount: number
     allowRepeat: boolean
     revealAnswer: boolean
+    easyMode?: boolean // если true, угаданные регионы остаются залитыми
   }
   // optional explicit pool of region ids; if absent uses all
   pool?: string[]

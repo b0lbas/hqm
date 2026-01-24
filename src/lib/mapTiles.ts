@@ -53,8 +53,8 @@ export const MAP_STYLES: MapStyle[] = [
   {
     id: 'wikimedia',
     label: 'Wikimedia',
-    url: 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors'
+    url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors, Tiles style © Humanitarian OpenStreetMap Team'
   },
   {
     id: 'opentopo',

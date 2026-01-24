@@ -28,6 +28,7 @@ export default function QuizModal({
   const [name, setName] = useState('')
   const [type, setType] = useState<QuizType>('map-click')
   const [revealAnswer, setRevealAnswer] = useState(true)
+  const [easyMode, setEasyMode] = useState(false)
   const [imageMap, setImageMap] = useState<Record<string, string>>({})
   const [imageSearch, setImageSearch] = useState('')
 
@@ -51,12 +52,14 @@ export default function QuizModal({
       setName(quiz.name)
       setType(quiz.type)
       setRevealAnswer(Boolean(quiz.settings.revealAnswer))
+      setEasyMode(Boolean(quiz.settings.easyMode))
       setImageMap(quiz.imageMap || {})
     } else {
       setDatasetId(datasets[0]?.id || '')
       setName('')
       setType('map-click')
       setRevealAnswer(true)
+      setEasyMode(false)
       setImageMap({})
     }
   }, [open, quiz, datasets])
@@ -93,7 +96,8 @@ export default function QuizModal({
             questionCount: qCount,
             optionsCount: 4,
             allowRepeat: false,
-            revealAnswer
+            revealAnswer,
+            easyMode
           }
         }
 
@@ -107,7 +111,8 @@ export default function QuizModal({
         questionCount: qCount,
         optionsCount: 4,
         allowRepeat: false,
-        revealAnswer
+        revealAnswer,
+        easyMode
       },
       updatedAt: now
     }
@@ -160,6 +165,10 @@ export default function QuizModal({
           <label className="flex items-center gap-2 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5">
             <input type="checkbox" checked={revealAnswer} onChange={e => setRevealAnswer(e.target.checked)} />
             <span className="text-sm text-slate-200">Показывать правильный ответ</span>
+          </label>
+          <label className="flex items-center gap-2 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5">
+            <input type="checkbox" checked={easyMode} onChange={e => setEasyMode(e.target.checked)} />
+            <span className="text-sm text-slate-200">Easy mode: угаданные регионы остаются залитыми</span>
           </label>
         </div>
 
