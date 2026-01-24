@@ -19,6 +19,8 @@ export default function PlayPage() {
 
   // easyMode: сохраняем угаданные регионы
   const [guessedIds, setGuessedIds] = useState<string[]>([])
+  // missedIds: регионы, которые были целями, но игрок их не угадал
+  const [missedIds, setMissedIds] = useState<string[]>([])
 
   useEffect(() => {
     let alive = true
@@ -68,20 +70,21 @@ export default function PlayPage() {
     setScore(0)
     setAnswer({ status: 'idle' })
     setGuessedIds([])
+    setMissedIds([])
     console.debug('[PlayPage] reset state for quizId', quizId)
   }, [quizId])
 
   const q = questions[idx]
   const done = idx >= questions.length
 
-  // easyMode: если включено, регионы из guessedIds всегда correct
+  // easyMode: если включено, регионы из guessedIds всегда correct, а из missedIds всегда wrong
   const regionStates = useMemo(() => {
     if (!q || !quiz) return {}
     const map: Record<string, 'none' | 'target' | 'correct' | 'wrong'> = {}
 
-    // easyMode: подсвечиваем все угаданные регионы
-    if (quiz.settings.easyMode && guessedIds.length) {
+    if (quiz.settings.easyMode) {
       for (const id of guessedIds) map[id] = 'correct'
+      for (const id of missedIds) map[id] = 'wrong'
     }
 
     // For multiple-choice show the target only while answering.
@@ -89,17 +92,15 @@ export default function PlayPage() {
       map[q.targetId] = 'target'
     }
 
-    // If answered, mark chosen and target appropriately
+    // If answered, mark target appropriately.
+    // On wrong: do NOT highlight the chosen id; highlight target as wrong (player missed it).
     if (answer.status === 'wrong') {
-      const chosen = (answer as any).chosenId
-      if (chosen) map[chosen] = 'wrong'
-      // also reveal correct target
-      map[q.targetId] = 'correct'
+      map[q.targetId] = 'wrong'
     }
     if (answer.status === 'correct') {
       map[q.targetId] = 'correct'
     }
-    console.debug('[PlayPage] regionStates', map, 'guessedIds', guessedIds, 'easyMode', quiz.settings.easyMode)
+    console.debug('[PlayPage] regionStates', map, 'guessedIds', guessedIds, 'missedIds', missedIds, 'easyMode', quiz.settings.easyMode)
     return map
   }, [q, answer, quiz, guessedIds])
 
@@ -119,9 +120,14 @@ export default function PlayPage() {
   useEffect(() => {
     if (!q || done) return
     if (answer.status === 'idle') return
-    // easyMode: если правильный ответ — добавляем в guessedIds
-    if (quiz?.settings.easyMode && answer.status === 'correct' && (answer as any).chosenId) {
-      setGuessedIds(ids => ids.includes((answer as any).chosenId) ? ids : [...ids, (answer as any).chosenId])
+    // easyMode: сохраняем persistent состояния после ответа
+    if (quiz?.settings.easyMode) {
+      if (answer.status === 'correct') {
+        setGuessedIds(ids => ids.includes(q.targetId) ? ids : [...ids, q.targetId])
+      } else if (answer.status === 'wrong') {
+        // on wrong, persist the target as missed
+        setMissedIds(ids => ids.includes(q.targetId) ? ids : [...ids, q.targetId])
+      }
     }
     const t = window.setTimeout(() => {
       next()
