@@ -87,8 +87,8 @@ export default function PlayPage() {
       for (const id of missedIds) map[id] = 'wrong'
     }
 
-    // For multiple-choice show the target only while answering.
-    if (q.kind !== 'map-click' && answer.status === 'idle') {
+    // Show the target while idle for multiple-choice, or for map-click if revealAnswer is enabled.
+    if (answer.status === 'idle' && (q.kind !== 'map-click' || quiz.settings.revealAnswer)) {
       map[q.targetId] = 'target'
     }
 

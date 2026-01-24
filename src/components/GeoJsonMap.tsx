@@ -54,18 +54,18 @@ export default function GeoJsonMap({
       // Всегда заливаем correct и wrong независимо от baseFillOpacity
       if (state === 'correct') {
         return {
-          color: 'rgba(34,197,94,0.9)',
+          color: 'rgba(16,185,129,1)',
           weight: 1,
-          fillColor: 'rgba(34,197,94,0.35)',
-          fillOpacity: 0.6
+          fillColor: 'rgba(16,185,129,0.65)',
+          fillOpacity: 0.8
         } as L.PathOptions
       }
       if (state === 'wrong') {
         return {
-          color: 'rgba(244,63,94,0.9)',
+          color: 'rgba(220,38,38,1)',
           weight: 1,
-          fillColor: 'rgba(244,63,94,0.30)',
-          fillOpacity: 0.6
+          fillColor: 'rgba(220,38,38,0.65)',
+          fillOpacity: 0.8
         } as L.PathOptions
       }
       // Для target — полупрозрачная синяя заливка, если не outline
