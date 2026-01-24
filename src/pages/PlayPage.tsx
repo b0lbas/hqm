@@ -101,7 +101,7 @@ export default function PlayPage() {
     if (answer.status === 'idle') return
     const t = window.setTimeout(() => {
       next()
-    }, 700)
+    }, 1400)
     return () => window.clearTimeout(t)
   }, [answer.status, done, q])
 
@@ -188,7 +188,7 @@ export default function PlayPage() {
                   <div className="text-sm font-semibold">Вопрос {idx + 1}</div>
                 </div>
                 {answer.status !== 'idle' ? (
-                  <Pill>{answer.status === 'correct' ? '✅ Верно' : '❌ Неверно'}</Pill>
+                  <Pill>{answer.status === 'correct' ? '✅' : '❌'}</Pill>
                 ) : (
                   <Pill>…</Pill>
                 )}
