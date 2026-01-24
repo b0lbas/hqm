@@ -157,7 +157,6 @@ export default function DatasetModal({
             ) : (
               <Input value={idKey} onChange={setIdKey} placeholder="id" />
             )}
-            <div className="text-xs text-slate-500">properties.{idKey} → уникальный идентификатор</div>
           </div>
 
           <div className="grid gap-2">
@@ -167,12 +166,7 @@ export default function DatasetModal({
             ) : (
               <Input value={labelKey} onChange={setLabelKey} placeholder="name" />
             )}
-            <div className="text-xs text-slate-500">properties.{labelKey} → то, что показываем пользователю</div>
           </div>
-        </div>
-
-        <div className="rounded-2xl bg-neutral-800/60 p-4 text-xs text-slate-500 ring-1 ring-white/5">
-          Подсказка: если в GeoJSON нет удобного id — добавьте его в свойствах заранее (в QGIS, Mapshaper и т.п.).
         </div>
       </div>
     </Modal>
