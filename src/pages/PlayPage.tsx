@@ -222,6 +222,7 @@ export default function PlayPage() {
               regionStates={regionStates}
               disabled={q.kind !== 'map-click' || answer.status !== 'idle'}
               onRegionClick={rid => submit(rid)}
+              easyMode={!!quiz.settings.easyMode}
             />
           </div>
         </div>

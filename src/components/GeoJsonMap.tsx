@@ -13,6 +13,7 @@ type Props = {
   onRegionClick?: (regionId: string) => void
   regionStates?: Record<string, RegionState>
   disabled?: boolean
+  easyMode?: boolean // новый флаг
 }
 
 export default function GeoJsonMap({
@@ -21,7 +22,8 @@ export default function GeoJsonMap({
   labelKey,
   onRegionClick,
   regionStates,
-  disabled
+  disabled,
+  easyMode
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -49,6 +51,15 @@ export default function GeoJsonMap({
     const base = getRegionStyleById(regionStyleId)
     const baseFillOpacity = base.fillOpacity ?? 1
     return (state: RegionState) => {
+      // Если easyMode и correct — всегда делаем заливку (fillOpacity > 0)
+      if (state === 'correct' && easyMode) {
+        return {
+          color: 'rgba(34,197,94,0.9)',
+          weight: 1,
+          fillColor: 'rgba(34,197,94,0.35)',
+          fillOpacity: 0.6 // фиксированная заливка для correct
+        } as L.PathOptions
+      }
       const fillColor =
         baseFillOpacity === 0
           ? 'rgba(0,0,0,0)'
@@ -76,7 +87,7 @@ export default function GeoJsonMap({
         fillOpacity: baseFillOpacity
       } as L.PathOptions
     }
-  }, [regionStyleId])
+  }, [regionStyleId, easyMode])
 
   useEffect(() => {
     if (!containerRef.current) return
