@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+/* Flat background */
+.app-bg {
+  background-color: #121417;
+}
+
+/* Nice scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148,163,184,0.35) rgba(2,6,23,0.3);
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: rgba(2,6,23,0.3); }
+*::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.35); border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.5); }
