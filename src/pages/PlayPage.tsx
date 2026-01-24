@@ -187,11 +187,7 @@ export default function PlayPage() {
                 <div>
                   <div className="text-sm font-semibold">Вопрос {idx + 1}</div>
                 </div>
-                {answer.status !== 'idle' ? (
-                  <Pill>{answer.status === 'correct' ? '✅' : '❌'}</Pill>
-                ) : (
-                  <Pill>…</Pill>
-                )}
+                {answer.status === 'idle' ? <Pill>…</Pill> : null}
               </div>
             </CardHeader>
             <CardBody>
@@ -258,11 +254,6 @@ function QuestionBlock({
             {targetLabel}
           </div>
         )}
-        {answer.status !== 'idle' ? (
-          <div className="text-sm text-slate-300">
-            {answer.status === 'correct' ? 'Отлично.' : 'Неверно.'}
-          </div>
-        ) : null}
       </div>
     )
   }
