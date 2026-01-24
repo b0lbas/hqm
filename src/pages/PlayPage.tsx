@@ -187,7 +187,6 @@ export default function PlayPage() {
                 <div>
                   <div className="text-sm font-semibold">Вопрос {idx + 1}</div>
                 </div>
-                {answer.status === 'idle' ? <Pill>…</Pill> : null}
               </div>
             </CardHeader>
             <CardBody>
