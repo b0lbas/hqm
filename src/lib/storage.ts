@@ -1,4 +1,5 @@
 import { openDB, type DBSchema } from 'idb'
+import { nanoid } from 'nanoid'
 import type { Dataset, Quiz } from './types'
 
 const LEGACY_KEY = 'hqmin.v1'
@@ -145,5 +146,61 @@ export const storage = {
     localStorage.setItem(MIGRATED_KEY, '1')
     localStorage.removeItem(LEGACY_KEY)
     return { ok: true }
+  },
+
+  async exportQuizBundle(quizId: string): Promise<string> {
+    await migrateLegacyIfNeeded()
+    const db = await getDB()
+    const quiz = await db.get('quizzes', quizId)
+    if (!quiz) throw new Error('Квиз не найден')
+    const dataset = await db.get('datasets', quiz.datasetId)
+    if (!dataset) throw new Error('Датасет не найден')
+    const payload = {
+      version: 1,
+      exportedAt: Date.now(),
+      dataset,
+      quiz
+    }
+    return JSON.stringify(payload, null, 2)
+  },
+
+  async importQuizBundle(json: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    try {
+      const parsed = JSON.parse(json)
+      const dataset = parsed?.dataset as Dataset | undefined
+      const quiz = parsed?.quiz as Quiz | undefined
+      if (!dataset || !quiz) return { ok: false, error: 'Неверный файл: нужен dataset и quiz.' }
+      if (!dataset.geojson || !dataset.idKey || !dataset.labelKey) {
+        return { ok: false, error: 'Неверный dataset в файле.' }
+      }
+
+      const newDatasetId = nanoid()
+      const newQuizId = nanoid()
+      const now = Date.now()
+
+      const datasetCopy: Dataset = {
+        ...dataset,
+        id: newDatasetId,
+        createdAt: now,
+        updatedAt: now
+      }
+
+      const quizCopy: Quiz = {
+        ...quiz,
+        id: newQuizId,
+        datasetId: newDatasetId,
+        createdAt: now,
+        updatedAt: now
+      }
+
+      const db = await getDB()
+      const tx = db.transaction(['datasets', 'quizzes'], 'readwrite')
+      await tx.objectStore('datasets').put(datasetCopy)
+      await tx.objectStore('quizzes').put(quizCopy)
+      await tx.done
+      return { ok: true }
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'Не удалось импортировать файл.' }
+    }
   }
 }

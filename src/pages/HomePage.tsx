@@ -28,6 +28,7 @@ export default function HomePage() {
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const importRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -48,13 +49,55 @@ export default function HomePage() {
     quizzes: quizzes.length
   }), [datasets.length, quizzes.length])
 
+  async function exportQuiz(q: Quiz) {
+    try {
+      const json = await storage.exportQuizBundle(q.id)
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${q.name || 'quiz'}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      alert(e?.message || 'Не удалось экспортировать квиз.')
+    }
+  }
+
+  async function onImportFile(file: File | null) {
+    if (!file) return
+    try {
+      const text = await file.text()
+      const res = await storage.importQuizBundle(text)
+      if (!res.ok) {
+        alert(res.error)
+        return
+      }
+      window.location.reload()
+    } catch (e: any) {
+      alert(e?.message || 'Не удалось импортировать файл.')
+    } finally {
+      if (importRef.current) importRef.current.value = ''
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-slate-400">Датасеты и квизы</div>
         <div className="flex items-center gap-2">
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={e => onImportFile(e.target.files?.[0] || null)}
+            className="hidden"
+          />
           <Button onClick={() => setDatasetOpen(true)}>＋ Новый датасет</Button>
           <Button variant="secondary" onClick={() => setQuizOpen(true)} disabled={datasets.length === 0}>＋ Новый квиз</Button>
+          <Button variant="secondary" onClick={() => importRef.current?.click()}>Импорт квиза</Button>
           <Button variant="ghost" onClick={() => setSettingsOpen(true)}>Настройки</Button>
         </div>
       </div>
@@ -121,6 +164,7 @@ export default function HomePage() {
                         setEditingQuiz(q)
                         setEditQuizOpen(true)
                       }}
+                      onExport={() => exportQuiz(q)}
                       onDelete={async () => {
                         if (!confirm('Удалить квиз?')) return
                         await storage.deleteQuiz(q.id)
@@ -247,9 +291,11 @@ function MapStylePreview({ id }: { id: MapStyleId }) {
 
 function ActionMenu({
   onEdit,
+  onExport,
   onDelete
 }: {
   onEdit: () => void
+  onExport?: () => void
   onDelete: () => void
 }) {
   return (
@@ -269,6 +315,19 @@ function ActionMenu({
         >
           Изменить
         </button>
+        {onExport ? (
+          <button
+            className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-200 hover:bg-neutral-800"
+            onClick={e => {
+              e.preventDefault()
+              onExport()
+              const d = (e.currentTarget.closest('details') as HTMLDetailsElement | null)
+              d?.removeAttribute('open')
+            }}
+          >
+            Экспорт
+          </button>
+        ) : null}
         <button
           className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-200 hover:bg-neutral-800"
           onClick={e => {
