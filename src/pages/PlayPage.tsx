@@ -292,7 +292,7 @@ function QuestionBlock({
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-2">
+          <div className="grid gap-2">
         {options.map((id, i) => {
           const r = byId.get(id)
           const label = r?.label || id
@@ -300,11 +300,12 @@ function QuestionBlock({
           const isChosen = answer.status !== 'idle' && (answer as any).chosenId === id
           const isCorrect = id === q.targetId
 
+          // After answering: correct option should be green; if user chose wrong, chosen button should be red.
           const variant = answer.status === 'idle'
             ? 'secondary'
-            : isChosen
-              ? (isCorrect ? 'primary' : 'danger')
-              : 'ghost'
+            : isCorrect
+              ? 'primary'
+              : (isChosen ? 'danger' : 'ghost')
 
           return (
             <button
@@ -315,8 +316,8 @@ function QuestionBlock({
                 [
                   'w-full rounded-2xl px-4 py-3 text-left text-sm ring-1 ring-white/5 transition',
                   variant === 'secondary' ? 'bg-neutral-800/70 hover:bg-neutral-700 text-slate-100' : '',
-                  variant === 'primary' ? 'bg-neutral-600 text-slate-100' : '',
-                  variant === 'danger' ? 'bg-neutral-700 text-slate-100' : '',
+                  variant === 'primary' ? 'bg-emerald-600 text-slate-100' : '',
+                  variant === 'danger' ? 'bg-red-600 text-slate-100' : '',
                   variant === 'ghost' ? 'bg-transparent text-slate-400' : ''
                 ].join(' ')
               }
@@ -334,7 +335,7 @@ function QuestionBlock({
             </button>
           )
         })}
-      </div>
+          </div>
     </div>
   )
 }
