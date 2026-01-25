@@ -114,7 +114,7 @@ export default function HomePage() {
           </CardHeader>
           <CardBody>
             <div className="grid gap-2">
-              {datasets.slice(0, 5).map(d => (
+              {datasets.map(d => (
                 <div key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5">
                   <div>
                     <div className="text-sm font-medium">{d.name}</div>
@@ -151,7 +151,7 @@ export default function HomePage() {
           </CardHeader>
           <CardBody>
             <div className="grid gap-2">
-              {quizzes.slice(0, 5).map(q => (
+              {quizzes.map(q => (
                 <div key={q.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5">
                   <div>
                     <div className="text-sm font-medium">{q.name}</div>
