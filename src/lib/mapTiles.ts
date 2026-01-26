@@ -4,7 +4,6 @@ export type MapStyleId =
   | 'carto-voyager'
   | 'carto-light'
   | 'carto-dark'
-  | 'wikimedia'
   | 'opentopo'
   | 'esri-street'
   | 'esri-gray'
@@ -51,12 +50,7 @@ export const MAP_STYLES: MapStyle[] = [
     attribution: '© OpenStreetMap contributors © CARTO'
   },
   {
-    id: 'wikimedia',
-    label: 'Wikimedia',
-    url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors, Tiles style © Humanitarian OpenStreetMap Team'
-  },
-  {
+    /* Wikimedia removed due to compromised tiles */
     id: 'opentopo',
     label: 'OpenTopoMap',
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
