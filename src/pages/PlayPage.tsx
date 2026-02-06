@@ -189,7 +189,15 @@ export default function PlayPage() {
 
   return (
     <div className="grid min-h-screen gap-4 px-4 py-4">
-      <div className="text-sm text-slate-300">{quiz.name}</div>
+      <div className="flex items-center gap-3">
+        <Link
+          to="/"
+          className="rounded-xl bg-neutral-800/70 px-3 py-2 text-xs text-slate-200 ring-1 ring-white/5 hover:bg-neutral-700"
+        >
+          ← Назад
+        </Link>
+        <div className="text-sm text-slate-300">{quiz.name}</div>
+      </div>
 
       {done ? (
         <div className="flex flex-col items-center gap-4">
