@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
+import { nanoid } from 'nanoid'
 import { storage } from '../lib/storage'
-import type { Dataset, Quiz } from '../lib/types'
-import { Card, CardBody, CardHeader, Button, Pill, Modal, Select } from '../components/ui'
+import type { Dataset, Folder, Quiz } from '../lib/types'
+import { Card, CardBody, CardHeader, Button, Pill, Modal, Select, Input } from '../components/ui'
 import DatasetModal from '../components/modals/DatasetModal'
 import QuizModal from '../components/modals/QuizModal'
 import DatasetEditModal from '../components/modals/DatasetEditModal'
@@ -28,15 +29,29 @@ export default function HomePage() {
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [folderModalOpen, setFolderModalOpen] = useState(false)
+  const [folderName, setFolderName] = useState('')
+  const [folderKind, setFolderKind] = useState<'quiz' | 'dataset'>('quiz')
+  const [folderParentId, setFolderParentId] = useState<string>('root')
+  const [datasetFolderId, setDatasetFolderId] = useState<string | null>(null)
+  const [quizFolderId, setQuizFolderId] = useState<string | null>(null)
+  const [dragOverDatasetId, setDragOverDatasetId] = useState<string | 'none' | 'parent' | null>(null)
+  const [dragOverQuizId, setDragOverQuizId] = useState<string | 'none' | 'parent' | null>(null)
   const importRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     let alive = true
     async function load() {
-      const [ds, qs] = await Promise.all([storage.getAllDatasets(), storage.getAllQuizzes()])
+      const [ds, qs, fs] = await Promise.all([
+        storage.getAllDatasets(),
+        storage.getAllQuizzes(),
+        storage.getAllFolders()
+      ])
       if (!alive) return
       setDatasets(ds)
       setQuizzes(qs)
+      setFolders(fs)
     }
     load()
     return () => {
@@ -48,6 +63,36 @@ export default function HomePage() {
     datasets: datasets.length,
     quizzes: quizzes.length
   }), [datasets.length, quizzes.length])
+
+  const datasetFolders = useMemo(() => folders.filter(f => f.kind === 'dataset'), [folders])
+  const quizFolders = useMemo(() => folders.filter(f => f.kind === 'quiz' || !f.kind), [folders])
+
+  const currentDatasetFolder = useMemo(
+    () => datasetFolders.find(f => f.id === datasetFolderId) || null,
+    [datasetFolders, datasetFolderId]
+  )
+  const currentQuizFolder = useMemo(
+    () => quizFolders.find(f => f.id === quizFolderId) || null,
+    [quizFolders, quizFolderId]
+  )
+
+  const datasetFolderChildren = useMemo(
+    () => datasetFolders.filter(f => (f.parentId || null) === datasetFolderId),
+    [datasetFolders, datasetFolderId]
+  )
+  const quizFolderChildren = useMemo(
+    () => quizFolders.filter(f => (f.parentId || null) === quizFolderId),
+    [quizFolders, quizFolderId]
+  )
+
+  const datasetsInCurrent = useMemo(
+    () => datasets.filter(d => (d.folderId || null) === datasetFolderId),
+    [datasets, datasetFolderId]
+  )
+  const quizzesInCurrent = useMemo(
+    () => quizzes.filter(q => (q.folderId || null) === quizFolderId),
+    [quizzes, quizFolderId]
+  )
 
   async function exportQuiz(q: Quiz) {
     try {
@@ -83,6 +128,90 @@ export default function HomePage() {
     }
   }
 
+  function openCreateFolder() {
+    const kind: Folder['kind'] = quizFolderId ? 'quiz' : datasetFolderId ? 'dataset' : 'quiz'
+    setFolderKind(kind)
+    setFolderParentId(kind === 'dataset' ? (datasetFolderId || 'root') : (quizFolderId || 'root'))
+    setFolderName('')
+    setFolderModalOpen(true)
+  }
+
+  const folderPath = (id: string) => {
+    const map = new Map(folders.map(f => [f.id, f]))
+    const parts: string[] = []
+    let cur = map.get(id)
+    let guard = 0
+    while (cur && guard < 20) {
+      parts.unshift(cur.name)
+      cur = cur.parentId ? map.get(cur.parentId) : undefined
+      guard += 1
+    }
+    return parts.join(' / ')
+  }
+
+  const parentOptions = useMemo(() => {
+    const list = (folderKind === 'dataset' ? datasetFolders : quizFolders)
+    const opts = [{ value: 'root', label: '—' }]
+    for (const f of list) {
+      opts.push({ value: f.id, label: folderPath(f.id) || f.name })
+    }
+    return opts
+  }, [folderKind, datasetFolders, quizFolders, folders])
+
+  async function createFolder() {
+    const name = folderName.trim()
+    if (!name) return
+    const now = Date.now()
+    const parentId = folderParentId === 'root' ? undefined : folderParentId
+    const folder: Folder = {
+      id: nanoid(),
+      name,
+      kind: folderKind,
+      parentId,
+      createdAt: now,
+      updatedAt: now
+    }
+    await storage.saveFolder(folder)
+    setFolders(prev => [folder, ...prev])
+    setFolderModalOpen(false)
+  }
+
+  async function renameFolder(folder: Folder) {
+    const name = (prompt('Новое название папки', folder.name) || '').trim()
+    if (!name || name === folder.name) return
+    const updated: Folder = { ...folder, name, updatedAt: Date.now() }
+    await storage.saveFolder(updated)
+    setFolders(prev => prev.map(f => (f.id === folder.id ? updated : f)))
+  }
+
+  async function deleteFolder(folder: Folder) {
+    if (!confirm('Удалить папку?')) return
+    await storage.deleteFolder(folder.id)
+    setFolders(prev => prev.filter(f => f.id !== folder.id))
+    if (folder.kind === 'dataset') {
+      setDatasets(prev => prev.map(d => (d.folderId === folder.id ? { ...d, folderId: folder.parentId } : d)))
+    }
+    if (folder.kind === 'quiz') {
+      setQuizzes(prev => prev.map(q => (q.folderId === folder.id ? { ...q, folderId: folder.parentId } : q)))
+    }
+  }
+
+  async function moveDatasetToFolder(datasetId: string, folderId?: string) {
+    const d = datasets.find(x => x.id === datasetId)
+    if (!d) return
+    const updated: Dataset = { ...d, folderId, updatedAt: Date.now() }
+    await storage.saveDataset(updated)
+    setDatasets(prev => prev.map(x => (x.id === datasetId ? updated : x)))
+  }
+
+  async function moveQuizToFolder(quizId: string, folderId?: string) {
+    const q = quizzes.find(x => x.id === quizId)
+    if (!q) return
+    const updated: Quiz = { ...q, folderId, updatedAt: Date.now() }
+    await storage.saveQuiz(updated)
+    setQuizzes(prev => prev.map(x => (x.id === quizId ? updated : x)))
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -95,6 +224,7 @@ export default function HomePage() {
             onChange={e => onImportFile(e.target.files?.[0] || null)}
             className="hidden"
           />
+          <Button variant="secondary" onClick={openCreateFolder}>＋ Новая папка</Button>
           <Button onClick={() => setDatasetOpen(true)}>＋ Новый датасет</Button>
           <Button variant="secondary" onClick={() => setQuizOpen(true)} disabled={datasets.length === 0}>＋ Новый квиз</Button>
           <Button variant="secondary" onClick={() => importRef.current?.click()}>Импорт квиза</Button>
@@ -114,28 +244,140 @@ export default function HomePage() {
           </CardHeader>
           <CardBody>
             <div className="grid gap-2">
-              {datasets.map(d => (
-                <div key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5">
-                  <div>
-                    <div className="text-sm font-medium">{d.name}</div>
-                    <div className="text-xs text-slate-500">{d.geojson.features.length} объектов • id: {d.idKey} • label: {d.labelKey}</div>
+              {datasetFolderId ? (
+                <div
+                  className={`rounded-xl ring-1 ring-white/5 px-3 py-2 ${dragOverDatasetId === 'parent' ? 'bg-neutral-800/70' : 'bg-neutral-800/40'}`}
+                  onClick={() => setDatasetFolderId(currentDatasetFolder?.parentId || null)}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    setDragOverDatasetId('parent')
+                  }}
+                  onDragLeave={() => setDragOverDatasetId(null)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverDatasetId(null)
+                    const data = e.dataTransfer.getData('text/plain')
+                    if (data.startsWith('dataset:')) {
+                      moveDatasetToFolder(data.replace('dataset:', ''), currentDatasetFolder?.parentId)
+                    }
+                  }}
+                >
+                  <div className="text-sm font-semibold">..</div>
+                </div>
+              ) : null}
+
+              {datasetFolderChildren.map(folder => (
+                <div
+                  key={folder.id}
+                  className={`rounded-xl ring-1 ring-white/5 px-3 py-2 ${dragOverDatasetId === folder.id ? 'bg-neutral-800/70' : 'bg-neutral-800/40'}`}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    setDragOverDatasetId(folder.id)
+                  }}
+                  onDragLeave={() => setDragOverDatasetId(null)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverDatasetId(null)
+                    const data = e.dataTransfer.getData('text/plain')
+                    if (data.startsWith('dataset:')) {
+                      moveDatasetToFolder(data.replace('dataset:', ''), folder.id)
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      className="flex items-center gap-2 text-sm font-semibold text-slate-200 hover:text-white"
+                      onClick={() => setDatasetFolderId(folder.id)}
+                    >
+                      <span className="inline-block h-3 w-3 rounded-sm border border-slate-400/80" />
+                      {folder.name}
+                    </button>
+                    <FolderMenu
+                      onRename={() => renameFolder(folder)}
+                      onDelete={() => deleteFolder(folder)}
+                    />
                   </div>
-                  <ActionMenu
-                    onEdit={() => {
-                      setEditingDataset(d)
-                      setEditDatasetOpen(true)
-                    }}
-                    onDelete={async () => {
-                      if (!confirm('Удалить датасет? (Связанные квизы тоже удалятся)')) return
-                      await storage.deleteDataset(d.id)
-                      window.location.reload()
-                    }}
-                  />
                 </div>
               ))}
-              {!datasets.length && (
-                <div className="text-sm text-slate-500">Нажмите “Новый датасет”, чтобы загрузить GeoJSON.</div>
-              )}
+
+              {datasetFolderId === null && datasetsInCurrent.length ? (
+                <div
+                  className={`rounded-xl ring-1 ring-white/5 p-2 ${dragOverDatasetId === 'none' ? 'bg-neutral-800/70' : 'bg-neutral-800/40'}`}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    setDragOverDatasetId('none')
+                  }}
+                  onDragLeave={() => setDragOverDatasetId(null)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverDatasetId(null)
+                    const data = e.dataTransfer.getData('text/plain')
+                    if (data.startsWith('dataset:')) {
+                      moveDatasetToFolder(data.replace('dataset:', ''), undefined)
+                    }
+                  }}
+                >
+                  <div className="grid gap-2">
+                    {datasetsInCurrent.map(d => (
+                      <div
+                        key={d.id}
+                        draggable
+                        onDragStart={e => {
+                          e.dataTransfer.setData('text/plain', `dataset:${d.id}`)
+                          e.dataTransfer.effectAllowed = 'move'
+                        }}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5"
+                      >
+                        <div>
+                          <div className="text-sm font-medium">{d.name}</div>
+                          <div className="text-xs text-slate-500">{d.geojson.features.length} объектов • id: {d.idKey} • label: {d.labelKey}</div>
+                        </div>
+                        <ActionMenu
+                          onEdit={() => {
+                            setEditingDataset(d)
+                            setEditDatasetOpen(true)
+                          }}
+                          onDelete={async () => {
+                            if (!confirm('Удалить датасет? (Связанные квизы тоже удалятся)')) return
+                            await storage.deleteDataset(d.id)
+                            window.location.reload()
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : datasetFolderId !== null ? (
+                <div className="grid gap-2">
+                  {datasetsInCurrent.map(d => (
+                    <div
+                      key={d.id}
+                      draggable
+                      onDragStart={e => {
+                        e.dataTransfer.setData('text/plain', `dataset:${d.id}`)
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5"
+                    >
+                      <div>
+                        <div className="text-sm font-medium">{d.name}</div>
+                        <div className="text-xs text-slate-500">{d.geojson.features.length} объектов • id: {d.idKey} • label: {d.labelKey}</div>
+                      </div>
+                      <ActionMenu
+                        onEdit={() => {
+                          setEditingDataset(d)
+                          setEditDatasetOpen(true)
+                        }}
+                        onDelete={async () => {
+                          if (!confirm('Удалить датасет? (Связанные квизы тоже удалятся)')) return
+                          await storage.deleteDataset(d.id)
+                          window.location.reload()
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </CardBody>
         </Card>
@@ -151,32 +393,148 @@ export default function HomePage() {
           </CardHeader>
           <CardBody>
             <div className="grid gap-2">
-              {quizzes.map(q => (
-                <div key={q.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5">
-                  <div>
-                    <div className="text-sm font-medium">{q.name}</div>
-                    <div className="text-xs text-slate-500">{TYPE_LABEL[q.type] || q.type} • {q.settings.questionCount} вопросов</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a href={`/play/${q.id}`} className="text-xs text-slate-300 hover:text-white">Играть</a>
-                    <ActionMenu
-                      onEdit={() => {
-                        setEditingQuiz(q)
-                        setEditQuizOpen(true)
-                      }}
-                      onExport={() => exportQuiz(q)}
-                      onDelete={async () => {
-                        if (!confirm('Удалить квиз?')) return
-                        await storage.deleteQuiz(q.id)
-                        window.location.reload()
-                      }}
+              {quizFolderId ? (
+                <div
+                  className={`rounded-xl ring-1 ring-white/5 px-3 py-2 ${dragOverQuizId === 'parent' ? 'bg-neutral-800/70' : 'bg-neutral-800/40'}`}
+                  onClick={() => setQuizFolderId(currentQuizFolder?.parentId || null)}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    setDragOverQuizId('parent')
+                  }}
+                  onDragLeave={() => setDragOverQuizId(null)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverQuizId(null)
+                    const data = e.dataTransfer.getData('text/plain')
+                    if (data.startsWith('quiz:')) {
+                      moveQuizToFolder(data.replace('quiz:', ''), currentQuizFolder?.parentId)
+                    }
+                  }}
+                >
+                  <div className="text-sm font-semibold">..</div>
+                </div>
+              ) : null}
+
+              {quizFolderChildren.map(folder => (
+                <div
+                  key={folder.id}
+                  className={`rounded-xl ring-1 ring-white/5 px-3 py-2 ${dragOverQuizId === folder.id ? 'bg-neutral-800/70' : 'bg-neutral-800/40'}`}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    setDragOverQuizId(folder.id)
+                  }}
+                  onDragLeave={() => setDragOverQuizId(null)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverQuizId(null)
+                    const data = e.dataTransfer.getData('text/plain')
+                    if (data.startsWith('quiz:')) {
+                      moveQuizToFolder(data.replace('quiz:', ''), folder.id)
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      className="flex items-center gap-2 text-sm font-semibold text-slate-200 hover:text-white"
+                      onClick={() => setQuizFolderId(folder.id)}
+                    >
+                      <span className="inline-block h-3 w-3 rounded-sm border border-slate-400/80" />
+                      {folder.name}
+                    </button>
+                    <FolderMenu
+                      onRename={() => renameFolder(folder)}
+                      onDelete={() => deleteFolder(folder)}
                     />
                   </div>
                 </div>
               ))}
-              {!quizzes.length && (
-                <div className="text-sm text-slate-500">Создайте квиз и запускните его здесь.</div>
-              )}
+
+              {quizFolderId === null && quizzesInCurrent.length ? (
+                <div
+                  className={`rounded-xl ring-1 ring-white/5 p-2 ${dragOverQuizId === 'none' ? 'bg-neutral-800/70' : 'bg-neutral-800/40'}`}
+                  onDragOver={e => {
+                    e.preventDefault()
+                    setDragOverQuizId('none')
+                  }}
+                  onDragLeave={() => setDragOverQuizId(null)}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverQuizId(null)
+                    const data = e.dataTransfer.getData('text/plain')
+                    if (data.startsWith('quiz:')) {
+                      moveQuizToFolder(data.replace('quiz:', ''), undefined)
+                    }
+                  }}
+                >
+                  <div className="grid gap-2">
+                    {quizzesInCurrent.map(q => (
+                      <div
+                        key={q.id}
+                        draggable
+                        onDragStart={e => {
+                          e.dataTransfer.setData('text/plain', `quiz:${q.id}`)
+                          e.dataTransfer.effectAllowed = 'move'
+                        }}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5"
+                      >
+                        <div>
+                          <div className="text-sm font-medium">{q.name}</div>
+                          <div className="text-xs text-slate-500">{TYPE_LABEL[q.type] || q.type} • {q.settings.questionCount} вопросов</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a href={`/play/${q.id}`} className="text-xs text-slate-300 hover:text-white">Играть</a>
+                          <ActionMenu
+                            onEdit={() => {
+                              setEditingQuiz(q)
+                              setEditQuizOpen(true)
+                            }}
+                            onExport={() => exportQuiz(q)}
+                            onDelete={async () => {
+                              if (!confirm('Удалить квиз?')) return
+                              await storage.deleteQuiz(q.id)
+                              window.location.reload()
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : quizFolderId !== null ? (
+                <div className="grid gap-2">
+                  {quizzesInCurrent.map(q => (
+                    <div
+                      key={q.id}
+                      draggable
+                      onDragStart={e => {
+                        e.dataTransfer.setData('text/plain', `quiz:${q.id}`)
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      className="flex items-center justify-between gap-3 rounded-xl bg-neutral-800/60 px-3 py-2 ring-1 ring-white/5"
+                    >
+                      <div>
+                        <div className="text-sm font-medium">{q.name}</div>
+                        <div className="text-xs text-slate-500">{TYPE_LABEL[q.type] || q.type} • {q.settings.questionCount} вопросов</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a href={`/play/${q.id}`} className="text-xs text-slate-300 hover:text-white">Играть</a>
+                        <ActionMenu
+                          onEdit={() => {
+                            setEditingQuiz(q)
+                            setEditQuizOpen(true)
+                          }}
+                          onExport={() => exportQuiz(q)}
+                          onDelete={async () => {
+                            if (!confirm('Удалить квиз?')) return
+                            await storage.deleteQuiz(q.id)
+                            window.location.reload()
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </CardBody>
         </Card>
@@ -186,6 +544,40 @@ export default function HomePage() {
       <QuizModal open={quizOpen} onClose={() => setQuizOpen(false)} onCreated={() => {}} />
       <DatasetEditModal open={editDatasetOpen} onClose={() => setEditDatasetOpen(false)} dataset={editingDataset} />
       <QuizModal open={editQuizOpen} onClose={() => setEditQuizOpen(false)} onCreated={() => {}} quiz={editingQuiz} />
+
+      <Modal
+        open={folderModalOpen}
+        title="Новая папка"
+        onClose={() => setFolderModalOpen(false)}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="secondary" onClick={() => setFolderModalOpen(false)}>Отмена</Button>
+            <Button onClick={createFolder} disabled={!folderName.trim()}>Создать</Button>
+          </div>
+        }
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">Название</div>
+            <Input value={folderName} onChange={setFolderName} placeholder="Например: Европа" />
+          </div>
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">Тип</div>
+            <Select
+              value={folderKind}
+              onChange={v => setFolderKind(v as 'quiz' | 'dataset')}
+              options={[
+                { value: 'quiz', label: 'Квизы' },
+                { value: 'dataset', label: 'Датасеты' }
+              ]}
+            />
+          </div>
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">Папка</div>
+            <Select value={folderParentId} onChange={setFolderParentId} options={parentOptions} />
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={settingsOpen}
@@ -331,6 +723,46 @@ function ActionMenu({
             Экспорт
           </button>
         ) : null}
+        <button
+          className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-200 hover:bg-neutral-800"
+          onClick={e => {
+            e.preventDefault()
+            onDelete()
+            const d = (e.currentTarget.closest('details') as HTMLDetailsElement | null)
+            d?.removeAttribute('open')
+          }}
+        >
+          Удалить
+        </button>
+      </div>
+    </details>
+  )
+}
+
+function FolderMenu({
+  onRename,
+  onDelete
+}: {
+  onRename: () => void
+  onDelete: () => void
+}) {
+  return (
+    <details className="relative">
+      <summary className="list-none cursor-pointer rounded-full px-2 py-1 text-sm text-slate-300 hover:text-white">
+        ⋯
+      </summary>
+      <div className="absolute right-0 z-10 mt-2 w-36 rounded-xl bg-neutral-900/90 p-1 ring-1 ring-white/10">
+        <button
+          className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-200 hover:bg-neutral-800"
+          onClick={e => {
+            e.preventDefault()
+            onRename()
+            const d = (e.currentTarget.closest('details') as HTMLDetailsElement | null)
+            d?.removeAttribute('open')
+          }}
+        >
+          Переименовать
+        </button>
         <button
           className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-200 hover:bg-neutral-800"
           onClick={e => {

@@ -1,6 +1,6 @@
 import { openDB, type DBSchema } from 'idb'
 import { nanoid } from 'nanoid'
-import type { Dataset, Quiz } from './types'
+import type { Dataset, Folder, Quiz } from './types'
 
 const LEGACY_KEY = 'hqmin.v1'
 const MIGRATED_KEY = 'hqmin.v1.migrated'
@@ -8,6 +8,7 @@ const MIGRATED_KEY = 'hqmin.v1.migrated'
 type LegacyDB = {
   datasets: Dataset[]
   quizzes: Quiz[]
+  folders?: Folder[]
 }
 
 interface HqminDB extends DBSchema {
@@ -18,6 +19,10 @@ interface HqminDB extends DBSchema {
   quizzes: {
     key: string
     value: Quiz
+  }
+  folders: {
+    key: string
+    value: Folder
   }
 }
 
@@ -38,10 +43,11 @@ let migrationPromise: Promise<void> | null = null
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<HqminDB>('hqmin', 1, {
+    dbPromise = openDB<HqminDB>('hqmin', 2, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('datasets')) db.createObjectStore('datasets', { keyPath: 'id' })
         if (!db.objectStoreNames.contains('quizzes')) db.createObjectStore('quizzes', { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { keyPath: 'id' })
       }
     })
   }
@@ -59,9 +65,10 @@ async function migrateLegacyIfNeeded() {
       return
     }
     const db = await getDB()
-    const tx = db.transaction(['datasets', 'quizzes'], 'readwrite')
+    const tx = db.transaction(['datasets', 'quizzes', 'folders'], 'readwrite')
     for (const d of parsed.datasets) tx.objectStore('datasets').put(d)
     for (const q of parsed.quizzes) tx.objectStore('quizzes').put(q)
+    for (const f of parsed.folders || []) tx.objectStore('folders').put(f)
     await tx.done
     localStorage.setItem(MIGRATED_KEY, '1')
     localStorage.removeItem(LEGACY_KEY)
@@ -78,6 +85,12 @@ async function getAllDatasetsSorted(): Promise<Dataset[]> {
 async function getAllQuizzesSorted(): Promise<Quiz[]> {
   const db = await getDB()
   const list = await db.getAll('quizzes')
+  return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+}
+
+async function getAllFoldersSorted(): Promise<Folder[]> {
+  const db = await getDB()
+  const list = await db.getAll('folders')
   return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
 }
 
@@ -112,36 +125,86 @@ export const storage = {
     await migrateLegacyIfNeeded()
     return getAllQuizzesSorted()
   },
+  async getAllFolders(): Promise<Folder[]> {
+    await migrateLegacyIfNeeded()
+    return getAllFoldersSorted()
+  },
   async getQuiz(id: string): Promise<Quiz | undefined> {
     await migrateLegacyIfNeeded()
     const db = await getDB()
     return db.get('quizzes', id)
+  },
+  async getFolder(id: string): Promise<Folder | undefined> {
+    await migrateLegacyIfNeeded()
+    const db = await getDB()
+    return db.get('folders', id)
   },
   async saveQuiz(quiz: Quiz) {
     await migrateLegacyIfNeeded()
     const db = await getDB()
     await db.put('quizzes', quiz)
   },
+  async saveFolder(folder: Folder) {
+    await migrateLegacyIfNeeded()
+    const db = await getDB()
+    await db.put('folders', folder)
+  },
   async deleteQuiz(id: string) {
     await migrateLegacyIfNeeded()
     const db = await getDB()
     await db.delete('quizzes', id)
   },
+  async deleteFolder(id: string) {
+    await migrateLegacyIfNeeded()
+    const db = await getDB()
+    const folder = await db.get('folders', id)
+    await db.delete('folders', id)
+    const now = Date.now()
+    const kind = folder?.kind || 'quiz'
+    const folders = await db.getAll('folders')
+    for (const f of folders) {
+      if (f.parentId === id) {
+        await db.put('folders', { ...f, parentId: folder?.parentId, updatedAt: now })
+      }
+    }
+    if (kind === 'quiz') {
+      const quizzes = await db.getAll('quizzes')
+      for (const q of quizzes) {
+        if (q.folderId === id) {
+          await db.put('quizzes', { ...q, folderId: folder?.parentId, updatedAt: now })
+        }
+      }
+    }
+    if (kind === 'dataset') {
+      const datasets = await db.getAll('datasets')
+      for (const d of datasets) {
+        if (d.folderId === id) {
+          await db.put('datasets', { ...d, folderId: folder?.parentId, updatedAt: now })
+        }
+      }
+    }
+  },
 
   async exportAll(): Promise<string> {
     await migrateLegacyIfNeeded()
-    const [datasets, quizzes] = await Promise.all([getAllDatasetsSorted(), getAllQuizzesSorted()])
-    return JSON.stringify({ datasets, quizzes }, null, 2)
+    const [datasets, quizzes, folders] = await Promise.all([
+      getAllDatasetsSorted(),
+      getAllQuizzesSorted(),
+      getAllFoldersSorted()
+    ])
+    return JSON.stringify({ datasets, quizzes, folders }, null, 2)
   },
   async importAll(json: string): Promise<{ ok: true } | { ok: false; error: string }> {
     const parsed = safeParse(json)
     if (!parsed) return { ok: false, error: 'Неверный JSON (ожидается формат HelloQuiz Minimal).' }
     const db = await getDB()
-    const tx = db.transaction(['datasets', 'quizzes'], 'readwrite')
+    const tx = db.transaction(['datasets', 'quizzes', 'folders'], 'readwrite')
     await tx.objectStore('datasets').clear()
     await tx.objectStore('quizzes').clear()
+    await tx.objectStore('folders').clear()
     for (const d of parsed.datasets) tx.objectStore('datasets').put(d)
     for (const q of parsed.quizzes) tx.objectStore('quizzes').put(q)
+    for (const f of parsed.folders || []) tx.objectStore('folders').put(f)
     await tx.done
     localStorage.setItem(MIGRATED_KEY, '1')
     localStorage.removeItem(LEGACY_KEY)

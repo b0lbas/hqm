@@ -7,6 +7,7 @@ export type Dataset = {
   name: string
   createdAt: number
   updatedAt: number
+  folderId?: string
   geojson: GeoFeatureCollection
   idKey: string
   labelKey: string
@@ -22,6 +23,7 @@ export type Quiz = {
   createdAt: number
   updatedAt: number
   datasetId: string
+  folderId?: string
   type: QuizType
   // regionId -> image url (public)
   imageMap?: Record<string, string>
@@ -40,4 +42,13 @@ export type Region = {
   id: string
   label: string
   hasFlag: boolean
+}
+
+export type Folder = {
+  id: string
+  name: string
+  kind: 'quiz' | 'dataset'
+  parentId?: string
+  createdAt: number
+  updatedAt: number
 }
