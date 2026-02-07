@@ -215,8 +215,7 @@ export default function HomePage() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm text-slate-400">Датасеты и квизы</div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col items-center justify-center gap-2 sm:w-auto sm:flex-row sm:items-center">
           <input
             ref={importRef}
             type="file"
@@ -224,11 +223,13 @@ export default function HomePage() {
             onChange={e => onImportFile(e.target.files?.[0] || null)}
             className="hidden"
           />
-          <Button variant="secondary" onClick={openCreateFolder}>＋ Новая папка</Button>
-          <Button onClick={() => setDatasetOpen(true)}>＋ Новый датасет</Button>
-          <Button variant="secondary" onClick={() => setQuizOpen(true)} disabled={datasets.length === 0}>＋ Новый квиз</Button>
-          <Button variant="secondary" onClick={() => importRef.current?.click()}>Импорт квиза</Button>
-          <Button variant="ghost" onClick={() => setSettingsOpen(true)}>Настройки</Button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2">
+            <Button onClick={() => setDatasetOpen(true)}>＋ Новый датасет</Button>
+            <Button variant="secondary" onClick={() => setQuizOpen(true)} disabled={datasets.length === 0}>＋ Новый квиз</Button>
+            <Button variant="secondary" onClick={openCreateFolder}>＋ Новая папка</Button>
+            <Button variant="secondary" onClick={() => importRef.current?.click()}>Импорт квиза</Button>
+          </div>
+          <Button variant="ghost" onClick={() => setSettingsOpen(true)} className="sm:ml-2">Настройки</Button>
         </div>
       </div>
 
